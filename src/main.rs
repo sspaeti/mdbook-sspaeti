@@ -1,5 +1,5 @@
-mod wikilink_converter;
-mod admonition_converter;
+mod sspaeti_converter;
+
 use mdbook::errors::Error;
 use mdbook::preprocess::{CmdPreprocessor, Preprocessor};
 use serde_json;
@@ -7,8 +7,7 @@ use std::io;
 use std::process;
 use clap;
 
-use wikilink_converter::WikilinkConverter;
-use admonition_converter::AdmonitionConverter;
+use sspaeti_converter::CombinedConverter;
 
 pub fn make_app() -> clap::App<'static> {
     clap::App::new("admonition-converter")
@@ -23,27 +22,17 @@ pub fn make_app() -> clap::App<'static> {
 fn main() {
     let matches = make_app().get_matches();
 
-    let admonition_converter = AdmonitionConverter::new();
-    let wikilink_converter = WikilinkConverter::new("https://www.ssp.sh/brain".to_string());
+    let combined_converter = CombinedConverter::new("https://www.ssp.sh/brain".to_string());
 
     if let Some(sub_args) = matches.subcommand_matches("supports") {
-        // Check support for all preprocessors first, then decide to exit or not
-        let admonition_supports = check_supports(&admonition_converter, sub_args);
-        let wikilink_supports = check_supports(&wikilink_converter, sub_args);
-
-        if admonition_supports && wikilink_supports {
+        if check_supports(&combined_converter, sub_args) {
             process::exit(0);
         } else {
             process::exit(1);
         }
     } else {
-        if let Err(e) = handle_preprocessing(&admonition_converter) {
-            eprintln!("{}", e);
-            process::exit(1);
-        }
-
-        if let Err(e) = handle_preprocessing(&wikilink_converter) {
-            eprintln!("{}", e);
+        if let Err(e) = handle_preprocessing(&combined_converter) {
+            eprintln!("Error during combined preprocessing: {}", e);
             process::exit(1);
         }
     }
