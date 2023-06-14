@@ -19,6 +19,7 @@ need to be converted to
 ```admonish example
 My example is the best!
 ```
+```
 
 ### Convert Wikilinks to my Second Brain links
 ...
