@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[[bin]]
+name = "mdbook-sspaeti"
+path = "src/main.rs"
 
 [dependencies]
 mdbook = "0.4.30"
@@ -15,4 +18,6 @@ pulldown-cmark = "0.9.3"
 pulldown-cmark-to-cmark = "10.0.4"
 
 
-
+[[test]]
+name = "wikilink_converter_tests"
+path = "tests/wikilink_converter_tests.rs"
