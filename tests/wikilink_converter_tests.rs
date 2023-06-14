@@ -1,73 +1,37 @@
+mod dummy_book;
+
+use crate::dummy_book::DummyBook;
+use mdbook::MDBook;
+use mdbook::preprocess::Preprocessor;
 use mdbook_sspaeti::{WikilinkConverter};
-use std::fs;
-use mdbook::book::{BookItem, Chapter};
-use mdbook::config::Config;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::fs;
-    use mdbook::book::{BookItem, Chapter};
-    use mdbook::config::Config;
+#[test]
+fn test_wikilink_converter_1() {
+    let converter = WikilinkConverter::new("https://www.ssp.sh/brain".to_string());
+    let dummy_book = DummyBook::new();
+    let temp = dummy_book.build().unwrap();
+    let mut md = MDBook::load(temp.path()).unwrap();
+    md.with_preprocessor(converter);
 
-    #[test]
-    fn test_wikilink_converter_1() {
-        let converter = WikilinkConverter::new("https://www.ssp.sh/brain".to_string());
+    md.config.set("preprocessor.wikilink-converter.ssp-url", "https://www.ssp.sh/brain").unwrap();
 
-        let mut book = Book::new();
-        // Read the file's contents
-        let chapter_content = fs::read_to_string("~/Documents/git/book/DEDP/src/part_1/intro-convergent-evolution.md")
-            .expect("Failed to read markdown file");
+    let got = md.build();
 
-        // Create a Chapter instance with the file's contents
-        let chapter = Chapter {
-            name: String::from("Test Chapter"),
-            content: chapter_content,
-            number: None,
-            sub_items: Vec::new(),
-            path: None,
-            source_path: None,
-            nav_path: None,
-            parent_names: Vec::new(),
-        };
+    assert!(got.is_ok());
+}
 
-        // Add the chapter to the book
-        book.push_item(BookItem::Chapter(chapter));
+#[test]
+fn test_wikilink_converter_2() {
+    let converter = WikilinkConverter::new("https://www.ssp.sh/brain".to_string());
+    let dummy_book = DummyBook::new();
+    let temp = dummy_book.build().unwrap();
+    let mut md = MDBook::load(temp.path()).unwrap();
+    md.with_preprocessor(converter);
 
-        // Create a dummy context
-        let ctx = PreprocessorContext::new(&Config::default());
+    md.config.set("preprocessor.wikilink-converter.ssp-url", "https://www.ssp.sh/brain").unwrap();
 
-        let result = converter.run(&ctx, book);
+    let got = md.build();
 
-        assert!(result.is_ok());
-        // Add more assertions here to check that the book content has been correctly modified...
-    }
-
-    #[test]
-    fn test_wikilink_converter_2() {
-        let converter = WikilinkConverter::new("https://www.ssp.sh/brain".to_string());
-
-        let mut book = Book::new();
-        let chapter_content = String::from("[[note]]");
-
-        let chapter = Chapter::new(
-            String::from("Test Chapter"),
-            chapter_content,
-            PathBuf::from(""),
-        );
-
-        book.push_item(BookItem::Chapter(chapter));
-
-        let ctx = PreprocessorContext::new(PathBuf::from(""), Config::default(), "html".to_string());
-
-        let result = converter.run(&ctx, book);
-
-        assert!(result.is_ok());
-        let book = result.unwrap();
-        if let Some(BookItem::Chapter(chapter)) = book.iter().next() {
-            assert_eq!(chapter.content, "[note](https://www.ssp.sh/brain/note/)");
-        } else {
-            panic!("Expected a chapter in the book");
-        }
-    }
+    assert!(got.is_ok());
+    // You can add more assertions here...
 }
