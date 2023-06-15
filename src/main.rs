@@ -1,52 +1,89 @@
-mod sspaeti_converter;
-
+use mdbook::preprocess::{Preprocessor, PreprocessorContext, CmdPreprocessor};
+use mdbook::book::{Book, BookItem};
 use mdbook::errors::Error;
-use mdbook::preprocess::{CmdPreprocessor, Preprocessor};
-use serde_json;
+use serde::{Serialize, Deserialize};
+use regex::Regex;
 use std::io;
-use std::process;
-use clap;
+use toml;
 
-use sspaeti_converter::CombinedConverter;
 
-pub fn make_app() -> clap::App<'static> {
-    clap::App::new("admonition-converter")
-        .about("A mdbook preprocessor which converts Obsidian style admonitions to mdBook-admonish style")
-        .subcommand(
-            clap::SubCommand::with_name("supports")
-                .arg(clap::Arg::with_name("renderer").required(true))
-                .about("Check whether a renderer is supported by this preprocessor"),
-        )
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default, rename_all = "kebab-case")]
+pub struct WikilinkPreprocessorConfig {
+    pub brain_base_url: String,
 }
 
-fn main() {
-    let matches = make_app().get_matches();
-
-    let combined_converter = CombinedConverter::new("https://www.ssp.sh/brain".to_string());
-
-    if let Some(sub_args) = matches.subcommand_matches("supports") {
-        if check_supports(&combined_converter, sub_args) {
-            process::exit(0);
-        } else {
-            process::exit(1);
-        }
-    } else {
-        if let Err(e) = handle_preprocessing(&combined_converter) {
-            eprintln!("Error during combined preprocessing: {}", e);
-            process::exit(1);
+impl WikilinkPreprocessorConfig {
+    pub fn from_preprocessor_context(ctx: &PreprocessorContext) -> Self {
+        match &ctx.config.get_preprocessor("sspaeti") {
+            Some(raw) => {
+                match raw.get("brain-base-url") {
+                    Some(url_value) => {
+                        if let toml::Value::String(url) = url_value {
+                            Self { brain_base_url: url.clone() }
+                        } else {
+                            Self::default()
+                        }
+                    },
+                    None => Self::default(),
+                }
+            },
+            None => Self::default(),
         }
     }
 }
 
-fn check_supports(pre: &dyn Preprocessor, sub_args: &clap::ArgMatches) -> bool {
-    let renderer = sub_args.value_of("renderer").expect("Required argument");
-    pre.supports_renderer(renderer)
-}
-fn handle_preprocessing(pre: &dyn Preprocessor) -> Result<(), Error> {
-    let (ctx, book) = CmdPreprocessor::parse_input(io::stdin())?;
-    let processed_book = pre.run(&ctx, book)?;
-    serde_json::to_writer(io::stdout(), &processed_book)?;
-    Ok(())
+pub struct WikilinkPreprocessor;
+
+impl Preprocessor for WikilinkPreprocessor {
+    fn name(&self) -> &str {
+        "wikilinks"
+    }
+
+    fn run(&self, ctx: &PreprocessorContext, mut book: Book) -> Result<Book, Error> {
+        eprintln!("mdbook-sspaeti: Running {} preprocessor", self.name());
+        let config = WikilinkPreprocessorConfig::from_preprocessor_context(ctx);
+        let brain_base_url = config.brain_base_url;
+        eprintln!("mdbook-sspaeti: brain_base_url = {}", brain_base_url);
+
+        let regex = Regex::new(r"\[\[(?P<note>[^\]]+)\]\]").unwrap();
+        book.for_each_mut(|section: &mut BookItem| {
+            if let BookItem::Chapter(ref mut ch) = *section {
+                let replaced = regex.replace_all(&ch.content, |caps: &regex::Captures| {
+                    let note = &caps["note"];
+                    let link = format!("({}/{})", brain_base_url, note.to_lowercase().replace(" ", "-"));
+                    format!("[{}]{}", note, link)
+                });
+                // eprintln!("DEBUG: replaced = {}", replaced);
+                ch.content = replaced.into_owned();
+            }
+        });
+        Ok(book)
+    }
+
+    fn supports_renderer(&self, renderer: &str) -> bool {
+        renderer != "not-supported-renderer"
+    }
 }
 
+fn main() {
+    let preprocessor = WikilinkPreprocessor;
 
+    match CmdPreprocessor::parse_input(io::stdin()) {
+        Ok((ctx, book)) => {
+            if preprocessor.supports_renderer(&ctx.renderer) {
+                match preprocessor.run(&ctx, book) {
+                    Ok(processed_book) => {
+                        serde_json::to_writer(io::stdout(), &processed_book).unwrap();
+                    }
+                    Err(e) => {
+                        eprintln!("Error while running preprocessor: {}", e);
+                    }
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("Error while parsing input: {}", e);
+        }
+    }
+}

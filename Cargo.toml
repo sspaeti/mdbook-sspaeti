@@ -11,13 +11,15 @@ path = "src/main.rs"
 [dependencies]
 mdbook = "0.4.30"
 regex = "1.8.4"
+serde = { version = "1.0.164", features = ["derive"] }
 serde_json = "1.0.96"
+toml = "0.5.11"
 # clap = "4.3.3"
-clap = "3.0.0-beta.5"
-pulldown-cmark = "0.9.3"
-pulldown-cmark-to-cmark = "10.0.4"
+# clap = "3.0.0-beta.5"
+# pulldown-cmark = "0.9.3"
+# pulldown-cmark-to-cmark = "10.0.4"
 
 
-[[test]]
-name = "wikilink_converter_tests"
-path = "tests/wikilink_converter_tests.rs"
+# [[test]]
+# name = "wikilink_converter_tests"
+# path = "tests/wikilink_converter_tests.rs"
