@@ -3,7 +3,6 @@ name = "mdbook-sspaeti"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [[bin]]
 name = "mdbook-sspaeti"
 path = "src/main.rs"
@@ -14,12 +13,4 @@ regex = "1.8.4"
 serde = { version = "1.0.164", features = ["derive"] }
 serde_json = "1.0.96"
 toml = "0.5.11"
-# clap = "4.3.3"
-# clap = "3.0.0-beta.5"
-# pulldown-cmark = "0.9.3"
-# pulldown-cmark-to-cmark = "10.0.4"
 
-
-# [[test]]
-# name = "wikilink_converter_tests"
-# path = "tests/wikilink_converter_tests.rs"
