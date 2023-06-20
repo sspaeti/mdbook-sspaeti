@@ -55,21 +55,27 @@ impl Preprocessor for WikilinkPreprocessor {
             if let BookItem::Chapter(ref mut ch) = *section {
                 let replaced = regex.replace_all(&ch.content, |caps: &regex::Captures| {
                     let note = &caps["note"];
-                    let link = format!("({}/{})", brain_base_url, note.to_lowercase().replace(" ", "-")); 
-                    eprintln!("mdbook-sspaeti: link = {}", link);
+                    let link_md = format!("({}/{})", brain_base_url, note.to_lowercase().replace(" ", "-")); 
+
                     //check if the link exists
-                    match check_link(&link) {
+                    let link = format!("{}/{}", brain_base_url, note.to_lowercase().replace(" ", "-")); 
+                    let link_clone = link.clone();
+                    // eprintln!("mdbook-sspaeti: link = {}", &link_clone);
+                    match check_link(&link_clone) {
                         Ok(message) => {
-                            println!("mdbook-sspaeti- check_link: {}", message);
+                            eprintln!("mdbook-sspaeti- check_link: {}", message);
+                            // replace wikilink with markdown link
+                            format!("[{}]{}", note, link_md)
                         }
                         Err(err) => {
-                            eprintln!("mdbook-sspaeti - check_link: {}", err);
+                            eprintln!("mdbook-sspaeti - check_link ERROR: {}", err);
+                            // return Err(Error::msg(format!("Link check failed: {}", err)));
+                            String::from("")
+                            // return Err(Error::msg(format!("mdbook-sspaeti - check_link ERROR: {}", err)));
                         }
                     }
 
-                    format!("[{}]{}", note, link)
                 });
-                // eprintln!("DEBUG: replaced = {}", replaced);
                 ch.content = replaced.into_owned();
             }
         });
