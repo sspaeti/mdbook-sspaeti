@@ -1,3 +1,4 @@
+mod rest;
 use mdbook::preprocess::{Preprocessor, PreprocessorContext, CmdPreprocessor};
 use mdbook::book::{Book, BookItem};
 use mdbook::errors::Error;
@@ -5,6 +6,8 @@ use serde::{Serialize, Deserialize};
 use regex::Regex;
 use std::io;
 use toml;
+
+use rest::check_link;
 
 
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
@@ -34,6 +37,7 @@ impl WikilinkPreprocessorConfig {
 }
 
 pub struct WikilinkPreprocessor;
+// use std::process::Command;
 
 impl Preprocessor for WikilinkPreprocessor {
     fn name(&self) -> &str {
@@ -51,7 +55,18 @@ impl Preprocessor for WikilinkPreprocessor {
             if let BookItem::Chapter(ref mut ch) = *section {
                 let replaced = regex.replace_all(&ch.content, |caps: &regex::Captures| {
                     let note = &caps["note"];
-                    let link = format!("({}/{})", brain_base_url, note.to_lowercase().replace(" ", "-"));
+                    let link = format!("({}/{})", brain_base_url, note.to_lowercase().replace(" ", "-")); 
+                    eprintln!("mdbook-sspaeti: link = {}", link);
+                    //check if the link exists
+                    match check_link(&link) {
+                        Ok(message) => {
+                            println!("mdbook-sspaeti- check_link: {}", message);
+                        }
+                        Err(err) => {
+                            eprintln!("mdbook-sspaeti - check_link: {}", err);
+                        }
+                    }
+
                     format!("[{}]{}", note, link)
                 });
                 // eprintln!("DEBUG: replaced = {}", replaced);
