@@ -6,7 +6,7 @@ pub fn check_link(url: &str) -> Result<String, Box<dyn Error>> {
             if response.status().is_success() {
                 Ok(format!("The URL is valid: {}", url))
             } else {
-                Ok(format!("The URL returned an error: {}, {}", response.status(), response.url()))
+                Ok(format!("The URL returned an ERROR: {}, {}", response.status(), response.url()))
             }
         },
         Err(err) => {
