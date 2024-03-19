@@ -16,6 +16,8 @@ If I have a little time, I might update more, but for now, I can give a quick no
 [preprocessor.sspaeti]
 command = "mdbook-sspaeti"
 brain-base-url = "https://ssp.sh/brain" #link to website you want `[[my-link]]` point to. e.g. `https://ssp.sh/brain/my-link`
+is-url-check = true #true ff you want to check if the links are valid. Will take some time
+
 ```
 
 The preprocessor will automatically check on each run, if the links are valid and or not like this (might be a bit verbose each time..)
