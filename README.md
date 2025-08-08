@@ -9,7 +9,7 @@ For now it convert Wikilinks `[[my link]]` to my Second Brain links `ssp.sh/brai
 
 If I have a little time, I might update more, but for now, I can give a quick note about how I set it up:
 
-1. I installed it through `cargo install mdbook-sspaeti` (I guess, maybe this part I did manually)
+1. I installed it through `make build` or `make build-linux` (It will run cargo build and move it to `bin` to execute )
 2. I added this config to my `book.toml`:
 
 ```toml
