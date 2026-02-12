@@ -2,7 +2,7 @@
 # mdbook-sspaeti
 A simple addition to help me publish my book.
 
-For now it convert Wikilinks `[[my link]]` to my Second Brain links `ssp.sh/brain/my-link`.
+For now it convert Wikilinks `[[my link]]` to my Second Brain links `[my link](ssp.sh/brain/my-link)`. And also aliases like `[[my link|my alias]]` to my Second Brain links `[my alias](ssp.sh/brain/my-link)`.
 
 
 ## Quick How-To

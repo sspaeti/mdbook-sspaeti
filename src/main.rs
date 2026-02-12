@@ -58,17 +58,23 @@ impl Preprocessor for WikilinkPreprocessor {
             if let BookItem::Chapter(ref mut ch) = *section {
                 let replaced = regex.replace_all(&ch.content, |caps: &regex::Captures| {
                     let note = &caps["note"];
+                    // Support aliased wikilinks: [[link target|display name]]
+                    let (link_target, display_name) = if let Some(pos) = note.find('|') {
+                        (&note[..pos], &note[pos + 1..])
+                    } else {
+                        (note, note)
+                    };
                     let link_md = format!(
                         "({}/{})",
                         brain_base_url,
-                        note.to_lowercase().replace(" ", "-")
+                        link_target.to_lowercase().replace(" ", "-")
                     );
 
                     //check if the link exists
                     let link = format!(
                         "{}/{}",
                         brain_base_url,
-                        note.to_lowercase().replace(" ", "-")
+                        link_target.to_lowercase().replace(" ", "-")
                     );
                     let link_clone = link.clone();
                     //only check if options is set
@@ -78,7 +84,7 @@ impl Preprocessor for WikilinkPreprocessor {
                             Ok(message) => {
                                 eprintln!("mdbook-sspaeti- check_link: {}", message);
                                 // replace wikilink with markdown link
-                                format!("[{}]{}", note, link_md)
+                                format!("[{}]{}", display_name, link_md)
                             }
                             Err(err) => {
                                 eprintln!("mdbook-sspaeti - check_link ERROR: {}", err);
@@ -89,7 +95,7 @@ impl Preprocessor for WikilinkPreprocessor {
                         }
                     } else {
                         // If is_url_check is false, skip the check and just format the link
-                        format!("[{}]{}", note, link_md)
+                        format!("[{}]{}", display_name, link_md)
                     }
                 });
                 ch.content = replaced.into_owned();
