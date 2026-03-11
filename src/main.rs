@@ -257,17 +257,14 @@ impl Preprocessor for WikilinkPreprocessor {
                         } else {
                             (note, note)
                         };
-                        let link_md = format!(
-                            "({}/{})",
-                            brain_base_url,
-                            link_target.to_lowercase().replace(" ", "-")
-                        );
+                        let slug = link_target
+                            .to_lowercase()
+                            .replace(" ", "-")
+                            .replace("(", "")
+                            .replace(")", "");
+                        let link_md = format!("({}/{})", brain_base_url, slug);
 
-                        let link = format!(
-                            "{}/{}",
-                            brain_base_url,
-                            link_target.to_lowercase().replace(" ", "-")
-                        );
+                        let link = format!("{}/{}", brain_base_url, slug);
                         let link_clone = link.clone();
                         if is_url_check {
                             match check_link(&link_clone) {
