@@ -34,7 +34,15 @@ mdbook-sspaeti: broken brain link: [[Minerva]] → minerva (part-2/6-dedp/dynami
 mdbook-sspaeti: broken brain link: [[Scuba]] → scuba (part-2/6-dedp/dynamic-queries.md)
 ```
 
-If `brain-content-path` is not set, the preprocessor falls back to HTTP checking via `is-url-check` (slower, requires the brain site to be running). Links that fail the HTTP check are also rendered as broken.
+#### How it works
+
+At the start of each build, the preprocessor reads the directory listing from `brain-content-path` **once** and builds an in-memory `HashSet<String>` of published slugs (e.g. `roapi.md` → `roapi`, `data governance.md` → `data-governance`). For each `[[WikiLink]]`, it does an O(1) lookup against this set. The hashmap exists only in memory during the build — nothing is written to disk, no network requests are made.
+
+#### Detection priority
+
+1. **`brain-content-path` (filesystem)** — if configured, this is always used. Fast, offline, no dependencies. `is-url-check` is effectively ignored.
+2. **`is-url-check` (HTTP fallback)** — only used when `brain-content-path` is **not** set. Makes an HTTP request per WikiLink, requires the brain site to be running. Slower.
+3. **No checking** — if neither is configured, all WikiLinks render as normal links.
 
 ### Image WikiLinks (Obsidian-style)
 
