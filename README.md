@@ -85,6 +85,18 @@ Output:
 </figure>
 ```
 
+### HTML Comment Stripping
+
+HTML comments (`<!-- ... -->`) are automatically removed from chapter content so author notes and TODOs don't leak into the published HTML source. Comments inside fenced code blocks are preserved.
+
+```markdown
+<!-- TODO: rewrite this section -->   ← stripped from output
+
+```html
+<!-- this comment stays because it's in a code block -->
+```
+```
+
 ## Configuration
 
 Add to your `book.toml`:

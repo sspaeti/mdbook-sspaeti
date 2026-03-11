@@ -193,8 +193,50 @@ impl Preprocessor for WikilinkPreprocessor {
         // Regex for text wikilinks (not preceded by !)
         let wikilink_regex = Regex::new(r"\[\[(?P<note>[^\]]+)\]\]").unwrap();
 
+        // Strip HTML comments from chapter content (author notes, TODOs, etc.)
+        let html_comment_re = Regex::new(r"(?s)<!--.*?-->").unwrap();
+
         book.for_each_mut(|section: &mut BookItem| {
             if let BookItem::Chapter(ref mut ch) = *section {
+                // 0. Strip HTML comments (but not inside fenced code blocks)
+                //    Build a set of byte ranges that are inside fenced blocks
+                let mut fenced_ranges: Vec<(usize, usize)> = Vec::new();
+                let mut fence_start: Option<(usize, &str)> = None;
+                let mut pos = 0;
+                for line in ch.content.lines() {
+                    let trimmed = line.trim_start();
+                    if let Some((start, marker)) = fence_start {
+                        if trimmed.starts_with(marker) && trimmed.trim() == marker {
+                            // end of fenced block (pos + line.len() to include this line)
+                            fenced_ranges.push((start, pos + line.len()));
+                            fence_start = None;
+                        }
+                    } else if trimmed.starts_with("```") || trimmed.starts_with("~~~") {
+                        let marker_char = &trimmed[..1];
+                        let marker_len = trimmed.chars().take_while(|&c| c.to_string() == marker_char).count();
+                        let marker = &trimmed[..marker_len];
+                        fence_start = Some((pos, marker));
+                    }
+                    pos += line.len() + 1; // +1 for newline
+                }
+
+                let content = &ch.content;
+                let mut result = String::with_capacity(content.len());
+                let mut last_end = 0;
+
+                for comment in html_comment_re.find_iter(content) {
+                    let in_fenced = fenced_ranges
+                        .iter()
+                        .any(|&(start, end)| comment.start() >= start && comment.end() <= end);
+                    if in_fenced {
+                        continue;
+                    }
+                    result.push_str(&content[last_end..comment.start()]);
+                    last_end = comment.end();
+                }
+                result.push_str(&content[last_end..]);
+                ch.content = result;
+
                 // 1. Image wikilinks: ![[image.webp]] and ![[image.webp|caption]]
                 //    Must run BEFORE text wikilinks to avoid partial matching
                 ch.content = process_image_wikilinks(&ch.content, &images_base_path);
@@ -394,6 +436,22 @@ mod tests {
             render_inline_markdown("by [Author](https://example.com) about **things**"),
             "by <a href=\"https://example.com\">Author</a> about <strong>things</strong>"
         );
+    }
+
+    #[test]
+    fn test_strip_html_comment_single_line() {
+        let html_comment_re = Regex::new(r"(?s)<!--.*?-->").unwrap();
+        let input = "before <!-- TODO: fix this --> after";
+        let result = html_comment_re.replace_all(input, "");
+        assert_eq!(result, "before  after");
+    }
+
+    #[test]
+    fn test_strip_html_comment_multiline() {
+        let html_comment_re = Regex::new(r"(?s)<!--.*?-->").unwrap();
+        let input = "before\n<!--\nTODO: first draft\nneeds rework\n-->\nafter";
+        let result = html_comment_re.replace_all(input, "");
+        assert_eq!(result, "before\n\nafter");
     }
 
     #[test]
