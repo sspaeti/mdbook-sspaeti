@@ -3,6 +3,7 @@ use mdbook_preprocessor::book::{Book, BookItem};
 use mdbook_preprocessor::errors::Result;
 use mdbook_preprocessor::{Preprocessor, PreprocessorContext};
 use regex::Regex;
+use std::collections::HashSet;
 use std::io;
 
 use rest::check_link;
@@ -12,6 +13,7 @@ pub struct WikilinkPreprocessorConfig {
     pub brain_base_url: String,
     pub is_url_check: bool,
     pub images_base_path: String,
+    pub brain_content_path: Option<String>,
 }
 
 impl WikilinkPreprocessorConfig {
@@ -28,8 +30,42 @@ impl WikilinkPreprocessorConfig {
         } else {
             config.images_base_path = "/images".to_string();
         }
+        if let Ok(Some(path)) = ctx.config.get::<String>("preprocessor.sspaeti.brain-content-path") {
+            config.brain_content_path = Some(path);
+        }
         config
     }
+}
+
+/// Convert a link target to a URL slug: lowercase, spaces to hyphens, strip parens.
+fn to_slug(target: &str) -> String {
+    target
+        .to_lowercase()
+        .replace(' ', "-")
+        .replace('(', "")
+        .replace(')', "")
+}
+
+/// Build a set of published slugs by reading .md file stems from the content directory.
+fn build_public_slugs(content_path: &str) -> HashSet<String> {
+    let mut slugs = HashSet::new();
+    let dir = match std::fs::read_dir(content_path) {
+        Ok(d) => d,
+        Err(e) => {
+            eprintln!("mdbook-sspaeti: WARNING: could not read brain-content-path '{}': {}", content_path, e);
+            return slugs;
+        }
+    };
+    for entry in dir.flatten() {
+        let path = entry.path();
+        if path.extension().map_or(false, |ext| ext == "md") {
+            if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                slugs.insert(to_slug(stem));
+            }
+        }
+    }
+    eprintln!("mdbook-sspaeti: loaded {} public brain slugs", slugs.len());
+    slugs
 }
 
 /// Escape HTML special characters in a string.
@@ -84,13 +120,13 @@ fn build_figure(src: &str, alt: &str, caption: Option<&str>, width: Option<&str>
     let img = format!("<img src=\"{}\" alt=\"{}\"{}>", escape_html(src), escape_html(alt), style);
     match caption {
         Some(cap) => format!(
-            "<figure>\n{}\n<figcaption>{}</figcaption>\n</figure>",
+            "<figure>\n{}\n<figcaption>{}</figcaption>\n</figure>\n",
             img,
             render_inline_markdown(cap)
         ),
         None if width.is_some() => {
             // Width but no caption — still wrap in figure for consistent styling
-            format!("<figure>\n{}\n</figure>", img)
+            format!("<figure>\n{}\n</figure>\n", img)
         }
         None => img,
     }
@@ -185,6 +221,9 @@ impl Preprocessor for WikilinkPreprocessor {
         let is_url_check = config.is_url_check;
         let images_base_path = config.images_base_path;
 
+        // Build public slugs set if brain-content-path is configured
+        let public_slugs = config.brain_content_path.as_ref().map(|p| build_public_slugs(p));
+
         eprintln!(
             "mdbook-sspaeti: brain_base_url = {}, is_url_check = {}, images_base_path = {}",
             brain_base_url, is_url_check, images_base_path
@@ -257,28 +296,39 @@ impl Preprocessor for WikilinkPreprocessor {
                         } else {
                             (note, note)
                         };
-                        let slug = link_target
-                            .to_lowercase()
-                            .replace(" ", "-")
-                            .replace("(", "")
-                            .replace(")", "");
-                        let link_md = format!("({}/{})", brain_base_url, slug);
-
+                        let slug = to_slug(link_target);
                         let link = format!("{}/{}", brain_base_url, slug);
-                        let link_clone = link.clone();
-                        if is_url_check {
-                            match check_link(&link_clone) {
+
+                        // Check if the slug is published
+                        if let Some(ref slugs) = public_slugs {
+                            if slugs.contains(&slug) {
+                                // Valid link → normal markdown (mdBook renders it)
+                                format!("[{}]({})", display_name, link)
+                            } else {
+                                // Broken link → raw HTML with class for CSS styling
+                                let src = ch.path.as_ref().map(|p| p.display().to_string()).unwrap_or_default();
+                                eprintln!("mdbook-sspaeti: broken brain link: [[{}]] → {} ({})", link_target, slug, src);
+                                format!(
+                                    "<a class=\"brain-link broken\">{}</a>",
+                                    escape_html(display_name)
+                                )
+                            }
+                        } else if is_url_check {
+                            match check_link(&link) {
                                 Ok(message) => {
                                     eprintln!("mdbook-sspaeti- check_link: {}", message);
-                                    format!("[{}]{}", display_name, link_md)
+                                    format!("[{}]({})", display_name, link)
                                 }
                                 Err(err) => {
                                     eprintln!("mdbook-sspaeti - check_link ERROR: {}", err);
-                                    String::from("")
+                                    format!(
+                                        "<a class=\"brain-link broken\">{}</a>",
+                                        escape_html(display_name)
+                                    )
                                 }
                             }
                         } else {
-                            format!("[{}]{}", display_name, link_md)
+                            format!("[{}]({})", display_name, link)
                         }
                     });
                 ch.content = replaced.into_owned();
